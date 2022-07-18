@@ -25,7 +25,7 @@ FROM player_performances pp
          INNER JOIN fixtures f ON pp.fixture_id = f.fixture_id
          INNER JOIN player_season_positions psp ON (f.season_id = psp.season_id AND pp.player_id = psp.player_id)
 WHERE pp.player_id = :playerId
-  AND pp.kickoff_time < ( SELECT kickoff_time FROM fixtures WHERE fixture_id = :fixtureId )
+  AND pp.kickoff_time <= ( SELECT kickoff_time FROM fixtures WHERE fixture_id = :fixtureId )
 ORDER BY pp.kickoff_time DESC
 LIMIT 10;
 SQL;
@@ -39,16 +39,16 @@ SQL;
         $statement->setFetchMode(PDO::FETCH_ASSOC);
         $results = $statement->fetchAll();
 
-        $context = [];
         for ($i = 0; $i < 10; $i += 1) {
-            $context[] = [
-                $results[$i]['total_points'] ?? 0,
-                $results[$i]['minutes'] ?? 0,
-                $results[$i]['was_home'] ?? 0,
-                $results[$i]['home_difficulty'] ?? 0,
-                $results[$i]['away_difficulty'] ?? 0,
-                $results[$i]['position_id'] ?? 0,
-            ];
+            if ($i !== 0) {
+                $context["total_points_sub_{$i}"] = $results[$i]['total_points'] ?? 0;
+                $context["minutes_sub_{$i}"] = $results[$i]['minutes'] ?? 0;
+            }
+
+            $context["was_home_sub_{$i}"] = $results[$i]['was_home'] ?? 0;
+            $context["home_difficulty_sub_{$i}"] = $results[$i]['home_difficulty'] ?? 0;
+            $context["away_difficulty_sub_{$i}"] = $results[$i]['away_difficulty'] ?? 0;
+            $context["position_id_sub_{$i}"] = $results[$i]['position_id'] ?? 0;
         }
 
         return $context;
