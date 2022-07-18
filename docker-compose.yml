@@ -1,0 +1,12 @@
+version: '3'
+services:
+  database:
+    container_name: database
+    image: davidpugh/fpl-database:latest
+  php:
+    container_name: php
+    build:
+      dockerfile: php.Dockerfile
+      context: .
+    volumes:
+      - "./:/app"

@@ -1,0 +1,12 @@
+{
+    "name": "plastonick/labelled-data-generation",
+    "autoload": {
+        "psr-4": {
+            "Plastonick\\FPL\\Data\\": "src/"
+        }
+    },
+    "require": {
+        "php-ai/php-ml": "^0.4.1",
+        "ext-pdo": "*"
+    }
+}
