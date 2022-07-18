@@ -64,6 +64,8 @@ foreach ($results as $i => $result) {
     $targets[] = $result['total_points'];
 }
 
+file_put_contents(__DIR__ . '/samples.json', $samples);
+
 //$samples = [[60], [61], [62], [63], [65]];
 //$targets = [3.1, 3.6, 3.8, 4, 4.1];
 
