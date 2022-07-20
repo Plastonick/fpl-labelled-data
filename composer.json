@@ -6,7 +6,8 @@
         }
     },
     "require": {
-        "php-ai/php-ml": "^0.4.1",
-        "ext-pdo": "*"
+        "ext-pdo": "*",
+        "rubix/ml": "^2.0",
+        "ext-readline": "*"
     }
 }

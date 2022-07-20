@@ -39,6 +39,9 @@ SQL;
         $statement->setFetchMode(PDO::FETCH_ASSOC);
         $results = $statement->fetchAll();
 
+        $context = [
+            'id' => $playerId . '-' . $fixtureId,
+        ];
         for ($i = 0; $i < 10; $i += 1) {
             if ($i !== 0) {
                 $context["total_points_sub_{$i}"] = $results[$i]['total_points'] ?? 0;
