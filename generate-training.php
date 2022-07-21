@@ -8,28 +8,42 @@ $connection = new \PDO('pgsql:host=database;port=5432;dbname=fantasy-db', 'fanta
 
 ini_set('memory_limit', -1);
 
+$type = $argv[1] ?? null;
+
 $context = new Context($connection);
-$samples = generateTrainingData($connection, $context);
-$unknowns = generateUnknownData($connection, $context);
 
-// Write unknown data
+switch ($type) {
+    case 'training':
+        $samples = generateTrainingData($connection, $context);
+        $resource = fopen(__DIR__ . '/dataset.csv', 'w+');
 
-$sampleResource = fopen(__DIR__ . '/dataset.csv', 'w+');
-$unknownResource = fopen(__DIR__ . '/unknown.csv', 'w+');
+        fputcsv($resource, array_keys($samples[0]));
+        foreach ($samples as $sample) {
+            fputcsv($resource, $sample);
+        }
 
-fputcsv($sampleResource, array_keys($samples[0]));
-fputcsv($unknownResource, array_keys($unknowns[0]));
+        fclose($resource);
 
-foreach ($samples as $sample) {
-    fputcsv($sampleResource, $sample);
+        echo "Generated training data\n";
+        break;
+
+    case 'unknown':
+        $unknowns = generateUnknownData($connection, $context);
+        $resource = fopen(__DIR__ . '/dataset.csv', 'w+');
+
+        fputcsv($resource, array_keys($unknowns[0]));
+        foreach ($unknowns as $unknown) {
+            fputcsv($resource, $unknown);
+        }
+
+        fclose($resource);
+
+        echo "Generated unknown data\n";
+        break;
+
+    default:
+        die('Please specify the generation flavour: training, unknown');
 }
-
-foreach ($unknowns as $unknown) {
-    fputcsv($unknownResource, $unknown);
-}
-
-fclose($sampleResource);
-fclose($unknownResource);
 
 function generateUnknownData(PDO $connection, Context $context): array
 {
@@ -87,10 +101,10 @@ SQL;
     $data = [];
     $total = count($results);
     foreach ($results as $i => $result) {
-        $context = $context->provide($result['player_id'], $result['fixture_id']);
-        $context['score'] = $result['total_points'];
+        $datum = $context->provide($result['player_id'], $result['fixture_id']);
+        $datum['score'] = $result['total_points'];
 
-        $data[] = $context;
+        $data[] = $datum;
 
         printProgressBar($i + 1, $total);
     }

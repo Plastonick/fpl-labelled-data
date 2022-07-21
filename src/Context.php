@@ -78,7 +78,7 @@ SQL;
 
         return [
             'start_hour' => $fixtureDatum['start_hour'],
-            'is_home' => (int) $fixtureDatum['home_team_id'] === (int) $playerDatum['last_team_id'],
+            'is_home' => (int) $fixtureDatum['home_team_id'] === (int) $playerDatum,
             'team_h_difficulty' => $fixtureDatum['team_h_difficulty'],
             'team_a_difficulty' => $fixtureDatum['team_a_difficulty'],
         ];
