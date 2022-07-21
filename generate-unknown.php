@@ -15,7 +15,7 @@ if (count($unknowns) === 0) {
     die("Could not retrieve any unknown data\n");
 }
 
-$resource = fopen(__DIR__ . '/dataset.csv', 'w+');
+$resource = fopen(__DIR__ . '/unknown.csv', 'w+');
 
 fputcsv($resource, array_keys($unknowns[0]));
 foreach ($unknowns as $unknown) {
