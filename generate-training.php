@@ -14,11 +14,15 @@ $context = new Context($connection);
 
 switch ($type) {
     case 'training':
-        $samples = generateTrainingData($connection, $context);
+        $training = generateTrainingData($connection, $context);
+        if (count($training) === 0) {
+            die("Could not retrieve any training data\n");
+        }
+
         $resource = fopen(__DIR__ . '/dataset.csv', 'w+');
 
-        fputcsv($resource, array_keys($samples[0]));
-        foreach ($samples as $sample) {
+        fputcsv($resource, array_keys($training[0]));
+        foreach ($training as $sample) {
             fputcsv($resource, $sample);
         }
 
@@ -29,6 +33,10 @@ switch ($type) {
 
     case 'unknown':
         $unknowns = generateUnknownData($connection, $context);
+        if (count($unknowns) === 0) {
+            die("Could not retrieve any unknown data\n");
+        }
+
         $resource = fopen(__DIR__ . '/dataset.csv', 'w+');
 
         fputcsv($resource, array_keys($unknowns[0]));
@@ -42,7 +50,7 @@ switch ($type) {
         break;
 
     default:
-        die('Please specify the generation flavour: training, unknown');
+        die("Please specify the generation flavour: training, unknown\n");
 }
 
 function generateUnknownData(PDO $connection, Context $context): array
