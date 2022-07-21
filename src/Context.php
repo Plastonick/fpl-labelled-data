@@ -6,7 +6,7 @@ use PDO;
 
 class Context
 {
-    public function __construct(private PDO $pdo)
+    public function __construct(private PDO $connection)
     {
     }
 
@@ -31,7 +31,7 @@ LIMIT 10;
 SQL;
 
 
-        $statement = $this->pdo->prepare($sql);
+        $statement = $this->connection->prepare($sql);
         $statement->bindParam('playerId', $playerId);
         $statement->bindParam('fixtureId', $fixtureId);
 
@@ -42,6 +42,9 @@ SQL;
         $context = [
             'id' => $playerId . '-' . $fixtureId,
         ];
+
+        $context = array_merge($context, $this->getFixtureData($playerId, $fixtureId));
+
         for ($i = 0; $i < 10; $i += 1) {
             if ($i !== 0) {
                 $context["total_points_sub_{$i}"] = $results[$i]['total_points'] ?? 0;
@@ -55,5 +58,78 @@ SQL;
         }
 
         return $context;
+    }
+
+    private function getFixtureData(int $playerId, int $fixtureId): array
+    {
+        static $fixtureData = null;
+        static $playerData = null;
+
+        if (!$fixtureData) {
+            $fixtureData = $this->buildFixtureData();
+        }
+
+        if (!$playerData) {
+            $playerData = $this->buildPlayerData();
+        }
+
+        $fixtureDatum = $fixtureData[$fixtureId];
+        $playerDatum = $playerData[$playerId];
+
+        return [
+            'start_hour' => $fixtureDatum['start_hour'],
+            'is_home' => (int) $fixtureDatum['home_team_id'] === (int) $playerDatum['last_team_id'],
+            'team_h_difficulty' => $fixtureDatum['team_h_difficulty'],
+            'team_a_difficulty' => $fixtureDatum['team_a_difficulty'],
+        ];
+    }
+
+    private function buildFixtureData(): array
+    {
+        $sql = <<<SQL
+SELECT fixture_id, 
+       TO_CHAR(kickoff_time, 'HH24') AS start_hour, 
+       home_team_id, 
+       team_h_difficulty, 
+       team_a_difficulty
+FROM fixtures;
+SQL;
+
+        $statement = $this->connection->prepare($sql);
+        $statement->execute();
+        $statement->setFetchMode(PDO::FETCH_ASSOC);
+        $results = $statement->fetchAll();
+
+        $data = [];
+        foreach ($results as $result) {
+            $data[$result['fixture_id']] = [
+                'start_hour' => $result['start_hour'],
+                'home_team_id' => $result['home_team_id'],
+                'team_h_difficulty' => $result['team_h_difficulty'],
+                'team_a_difficulty' => $result['team_a_difficulty'],
+            ];
+        }
+
+        return $data;
+    }
+
+    private function buildPlayerData(): array
+    {
+        $sql = <<<SQL
+SELECT player_id, last_team_id
+FROM players;
+SQL;
+
+        $statement = $this->connection->prepare($sql);
+        $statement->execute();
+        $statement->setFetchMode(PDO::FETCH_ASSOC);
+        $results = $statement->fetchAll();
+
+        $data = [];
+        foreach ($results as $result) {
+            $data[$result['player_id']] = $result['last_team_id'];
+        }
+
+        return $data;
     }
 }
