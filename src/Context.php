@@ -25,7 +25,7 @@ FROM player_performances pp
          INNER JOIN fixtures f ON pp.fixture_id = f.fixture_id
          INNER JOIN player_season_positions psp ON (f.season_id = psp.season_id AND pp.player_id = psp.player_id)
 WHERE pp.player_id = :playerId
-  AND pp.kickoff_time <= ( SELECT kickoff_time FROM fixtures WHERE fixture_id = :fixtureId )
+  AND pp.kickoff_time < ( SELECT kickoff_time FROM fixtures WHERE fixture_id = :fixtureId )
 ORDER BY pp.kickoff_time DESC
 LIMIT 10;
 SQL;
