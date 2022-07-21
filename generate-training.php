@@ -8,78 +8,23 @@ $connection = new \PDO('pgsql:host=database;port=5432;dbname=fantasy-db', 'fanta
 
 ini_set('memory_limit', -1);
 
-$type = $argv[1] ?? null;
-
 $context = new Context($connection);
 
-switch ($type) {
-    case 'training':
-        $training = generateTrainingData($connection, $context);
-        if (count($training) === 0) {
-            die("Could not retrieve any training data\n");
-        }
-
-        $resource = fopen(__DIR__ . '/dataset.csv', 'w+');
-
-        fputcsv($resource, array_keys($training[0]));
-        foreach ($training as $sample) {
-            fputcsv($resource, $sample);
-        }
-
-        fclose($resource);
-
-        echo "Generated training data\n";
-        break;
-
-    case 'unknown':
-        $unknowns = generateUnknownData($connection, $context);
-        if (count($unknowns) === 0) {
-            die("Could not retrieve any unknown data\n");
-        }
-
-        $resource = fopen(__DIR__ . '/dataset.csv', 'w+');
-
-        fputcsv($resource, array_keys($unknowns[0]));
-        foreach ($unknowns as $unknown) {
-            fputcsv($resource, $unknown);
-        }
-
-        fclose($resource);
-
-        echo "Generated unknown data\n";
-        break;
-
-    default:
-        die("Please specify the generation flavour: training, unknown\n");
+$training = generateTrainingData($connection, $context);
+if (count($training) === 0) {
+    die("Could not retrieve any training data\n");
 }
 
-function generateUnknownData(PDO $connection, Context $context): array
-{
-    $sql = <<<SQL
-SELECT p.player_id, f.fixture_id
-FROM fixtures f
-         INNER JOIN players p ON (f.away_team_id = p.last_team_id OR f.home_team_id = p.last_team_id)
-         INNER JOIN teams t ON p.last_team_id = t.team_id
-         INNER JOIN player_season_positions psp ON p.player_id = psp.player_id
-WHERE f.finished_provisional = FALSE
-  AND f.finished = FALSE;
-SQL;
+$resource = fopen(__DIR__ . '/dataset.csv', 'w+');
 
-    $statement = $connection->prepare($sql);
-    $statement->execute();
-    $statement->setFetchMode(PDO::FETCH_ASSOC);
-    $results = $statement->fetchAll();
-
-    $data = [];
-    $total = count($results);
-    foreach ($results as $i => $result) {
-        $data[] = $context->provide($result['player_id'], $result['fixture_id']);
-
-        printProgressBar($i + 1, $total);
-    }
-
-    return $data;
+fputcsv($resource, array_keys($training[0]));
+foreach ($training as $sample) {
+    fputcsv($resource, $sample);
 }
+
+fclose($resource);
+
+echo "Generated training data\n";
 
 function generateTrainingData(PDO $connection, Context $context): array
 {
@@ -98,6 +43,7 @@ SELECT
 FROM player_performances pp
          INNER JOIN fixtures f ON pp.fixture_id = f.fixture_id
          INNER JOIN player_season_positions psp ON (f.season_id = psp.season_id AND pp.player_id = psp.player_id)
+WHERE f.season_id IN (13, 14, 15)
 ORDER BY pp.player_id, pp.kickoff_time DESC;
 SQL;
 
