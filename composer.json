@@ -8,6 +8,7 @@
     "require": {
         "ext-pdo": "*",
         "rubix/ml": "^2.0",
-        "ext-readline": "*"
+        "ext-readline": "*",
+        "monolog/monolog": "^2.5"
     }
 }

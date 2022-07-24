@@ -1,8 +1,8 @@
 <?php
 
-use Plastonick\FPL\Data\Context;
-
 require_once __DIR__ . '/vendor/autoload.php';
+
+use Plastonick\FPL\Data\Context;
 
 $connection = new \PDO('pgsql:host=database;port=5432;dbname=fantasy-db', 'fantasy-user', 'fantasy-pwd');
 
