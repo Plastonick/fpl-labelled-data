@@ -12,6 +12,36 @@ class Context
 
     public function provide(int $playerId, int $fixtureId): array
     {
+        // TODO give a better indication to how good the opponent teams are
+
+        $context = [
+            'id' => $playerId . '-' . $fixtureId,
+        ];
+
+        $context = array_merge($context, $this->getFixtureData($playerId, $fixtureId));
+
+        $results = $this->fetchRecentPerformance($playerId, $fixtureId);
+        for ($i = 0; $i < 10; $i += 1) {
+            $context["total_points_sub_{$i}"] = $results[$i]['total_points'] ?? 0;
+            $context["minutes_sub_{$i}"] = $results[$i]['minutes'] ?? 0;
+            $context["was_home_sub_{$i}"] = $results[$i]['was_home'] ?? -1;
+            $context["home_difficulty_sub_{$i}"] = $results[$i]['home_difficulty'] ?? 0;
+            $context["away_difficulty_sub_{$i}"] = $results[$i]['away_difficulty'] ?? 0;
+            $context["position_id_sub_{$i}"] = $results[$i]['position_id'] ?? 0;
+        }
+
+        $results = $this->fetchHistoricPerformances($playerId, $fixtureId);
+        for ($i = 0; $i < 10; $i += 1) {
+            $context["historic_points_sub_{$i}"] = $results[$i]['total_points'] ?? -1;
+            $context["historic_minutes_sub_{$i}"] = $results[$i]['total_minutes'] ?? -1;
+            $context["historic_games_sub_{$i}"] = $results[$i]['games_played'] ?? -1;
+        }
+
+        return $context;
+    }
+
+    private function fetchRecentPerformance(int $playerId, int $fixtureId): array
+    {
         $sql = <<<SQL
 SELECT pp.total_points,
        pp.fixture_id,
@@ -37,27 +67,43 @@ SQL;
 
         $statement->execute();
         $statement->setFetchMode(PDO::FETCH_ASSOC);
-        $results = $statement->fetchAll();
 
-        $context = [
-            'id' => $playerId . '-' . $fixtureId,
-        ];
+        return $statement->fetchAll();
+    }
 
-        $context = array_merge($context, $this->getFixtureData($playerId, $fixtureId));
+    /**
+     * Returns the per-season performance of the player up to that fixture. Includes the partial-season performance if
+     * fixture is mid-season.
+     *
+     * @param int $playerId
+     * @param int $fixtureId
+     *
+     * @return array
+     */
+    private function fetchHistoricPerformances(int $playerId, int $fixtureId): array
+    {
+        $sql = <<<SQL
+SELECT SUM(pp.total_points)                             AS total_points,
+       SUM(pp.minutes)                                  AS total_minutes, 
+       SUM(CASE WHEN pp.minutes > 0 THEN 1 ELSE 0 END)  AS games_played
+FROM player_performances pp
+         INNER JOIN fixtures f ON pp.fixture_id = f.fixture_id
+         INNER JOIN seasons s ON (f.season_id = s.season_id)
+WHERE pp.player_id = :playerId
+  AND f.kickoff_time < ( SELECT kickoff_time FROM fixtures WHERE fixture_id = :fixtureId )
+GROUP BY s.season_id
+ORDER BY s.season_id DESC
+LIMIT 10;
+SQL;
 
-        for ($i = 0; $i < 10; $i += 1) {
-            if ($i !== 0) {
-                $context["total_points_sub_{$i}"] = $results[$i]['total_points'] ?? 0;
-                $context["minutes_sub_{$i}"] = $results[$i]['minutes'] ?? 0;
-            }
+        $statement = $this->connection->prepare($sql);
+        $statement->bindParam('playerId', $playerId);
+        $statement->bindParam('fixtureId', $fixtureId);
 
-            $context["was_home_sub_{$i}"] = $results[$i]['was_home'] ?? 0;
-            $context["home_difficulty_sub_{$i}"] = $results[$i]['home_difficulty'] ?? 0;
-            $context["away_difficulty_sub_{$i}"] = $results[$i]['away_difficulty'] ?? 0;
-            $context["position_id_sub_{$i}"] = $results[$i]['position_id'] ?? 0;
-        }
+        $statement->execute();
+        $statement->setFetchMode(PDO::FETCH_ASSOC);
 
-        return $context;
+        return $statement->fetchAll();
     }
 
     private function getFixtureData(int $playerId, int $fixtureId): array
