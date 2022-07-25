@@ -12,7 +12,8 @@ class Context
 
     public function provide(int $playerId, int $fixtureId): array
     {
-        // TODO give a better indication to how good the opponent teams are
+        // TODO give a better indication to how good the opponent teams are/their form
+        // TODO include how many goals they concede, and how many they're likely to score
 
         $context = [
             'id' => $playerId . '-' . $fixtureId,

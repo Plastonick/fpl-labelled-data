@@ -25,7 +25,7 @@ while ($line = fgetcsv($predictionResource)) {
 
 
     $playerData = getPlayerData($connection, $playerId, $fixtureId);
-    [$webName, $teamId, $positionId] = $playerData;
+    [$webName, $teamId, $positionId, $cost] = $playerData;
 
     $fixtureData = getFixtureData($connection, $fixtureId);
     [$homeTeamId, $awayTeamId, $homeTeam, $awayTeam, $kickoffTime, $gameWeek] = $fixtureData;
@@ -47,10 +47,10 @@ while ($line = fgetcsv($predictionResource)) {
     }
 
     $predictions[$playerId]['predictions'][] = [
-        'week' => $gameWeek,
-        'score' => $prediction,
+        'week' => (int) $gameWeek,
+        'score' => (float) $prediction,
         'chanceOfPlaying' => 100,
-        'cost' => 1
+        'cost' => $cost
     ];
 }
 
@@ -94,7 +94,10 @@ function getPlayerData(PDO $connection, string $playerId, string $fixtureId): ar
 
     if (!array_key_exists($playerId, $cache)) {
         $sql = <<<SQL
-SELECT web_name, last_team_id, COALESCE(psp.position_id, -1)
+SELECT web_name, 
+       last_team_id, 
+       COALESCE(psp.position_id, -1),
+       ( SELECT pp.value FROM player_performances pp WHERE pp.player_id = p.player_id ORDER BY id DESC LIMIT 1 )
 FROM players p
          LEFT JOIN player_season_positions psp ON (p.player_id = psp.player_id AND psp.season_id = ( SELECT season_id FROM fixtures f WHERE f.fixture_id = :fixtureId ))
 WHERE p.player_id = :playerId
@@ -105,7 +108,7 @@ SQL;
         $statement->execute(['playerId' => $playerId, 'fixtureId' => $fixtureId]);
         $statement->setFetchMode(PDO::FETCH_NUM);
         $data = $statement->fetchAll();
-        $cache[$playerId] = $data[0] ?? ['na', 0, 0];
+        $cache[$playerId] = $data[0] ?? ['na', 0, 0, 0];
     }
 
     return $cache[$playerId];
