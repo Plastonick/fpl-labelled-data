@@ -63,9 +63,9 @@ function getFixtureData(PDO $connection, string $fixtureId): ?array
 
     if (!array_key_exists($fixtureId, $cache)) {
         $sql = <<<SQL
-SELECT home_team_id, away_team_id, home.name, away.name, kickoff_time, gw.event
+SELECT home_team_id, away_team_id, home.name, away.name, kickoff_time, COALESCE(gw.event, -1)
 FROM fixtures f 
-    INNER JOIN game_weeks gw ON f.game_week_id = gw.game_week_id 
+    LEFT JOIN game_weeks gw ON f.game_week_id = gw.game_week_id 
     INNER JOIN teams away ON f.away_team_id = away.team_id
     INNER JOIN teams home ON f.home_team_id = home.team_id
 WHERE fixture_id = :fixtureId
@@ -94,10 +94,9 @@ function getPlayerData(PDO $connection, string $playerId, string $fixtureId): ar
 
     if (!array_key_exists($playerId, $cache)) {
         $sql = <<<SQL
-SELECT web_name, last_team_id, psp.position_id
+SELECT web_name, last_team_id, COALESCE(psp.position_id, -1)
 FROM players p
-         INNER JOIN player_season_positions psp ON (p.player_id = psp.player_id AND psp.season_id =
-                                                                                    ( SELECT season_id FROM fixtures f WHERE f.fixture_id = :fixtureId ))
+         LEFT JOIN player_season_positions psp ON (p.player_id = psp.player_id AND psp.season_id = ( SELECT season_id FROM fixtures f WHERE f.fixture_id = :fixtureId ))
 WHERE p.player_id = :playerId
 LIMIT 1
 SQL;
