@@ -49,7 +49,7 @@ while ($line = fgetcsv($predictionResource)) {
     $predictions[$playerId]['predictions'][] = [
         'week' => (int) $gameWeek,
         'score' => (float) $prediction,
-        'chanceOfPlaying' => 100,
+        'chanceOfPlaying' => 1,
         'cost' => $cost
     ];
 }
