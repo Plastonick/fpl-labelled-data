@@ -41,6 +41,21 @@ class Context
         return $context;
     }
 
+    private function getTeamData(int $playerTeamId, string $gameWeekStart): array
+    {
+        static $teamData = [];
+
+        $teamKey = "{$playerTeamId}-{$gameWeekStart}";
+        if (!array_key_exists($teamKey, $teamData)) {
+            $teamData[$teamKey] = array_merge(
+                $this->buildTeamData($playerTeamId, 'home', $gameWeekStart),
+                $this->buildTeamData($playerTeamId, 'away', $gameWeekStart)
+            );
+        }
+
+        return $teamData[$teamKey];
+    }
+
     private function fetchRecentPerformance(int $playerId, int $fixtureId): array
     {
         $sql = <<<SQL
@@ -121,25 +136,32 @@ SQL;
         }
 
         $fixtureDatum = $fixtureData[$fixtureId];
-        $playerDatum = $playerData[$playerId];
+        $playerTeamId = $playerData[$playerId];
 
-        return [
-            'start_hour' => $fixtureDatum['start_hour'],
-            'is_home' => (int) $fixtureDatum['home_team_id'] === (int) $playerDatum,
-            'team_h_difficulty' => $fixtureDatum['team_h_difficulty'],
-            'team_a_difficulty' => $fixtureDatum['team_a_difficulty'],
-        ];
+        $teamData = $this->getTeamData($playerTeamId, $fixtureDatum['game_week_start']);
+
+        return array_merge(
+            [
+                'start_hour' => $fixtureDatum['start_hour'],
+                'is_home' => (int) $fixtureDatum['home_team_id'] === (int) $playerTeamId,
+                'team_h_difficulty' => $fixtureDatum['team_h_difficulty'],
+                'team_a_difficulty' => $fixtureDatum['team_a_difficulty'],
+            ],
+            $teamData
+        );
     }
 
     private function buildFixtureData(): array
     {
         $sql = <<<SQL
-SELECT fixture_id, 
-       TO_CHAR(kickoff_time, 'HH24') AS start_hour, 
-       home_team_id, 
-       team_h_difficulty, 
-       team_a_difficulty
-FROM fixtures;
+SELECT fixture_id,
+       TO_CHAR(kickoff_time, 'HH24') AS start_hour,
+       home_team_id,
+       team_h_difficulty,
+       team_a_difficulty,
+       gw.start AS game_week_start
+FROM fixtures f
+INNER JOIN game_weeks gw ON f.game_week_id = gw.game_week_id
 SQL;
 
         $statement = $this->connection->prepare($sql);
@@ -154,6 +176,7 @@ SQL;
                 'home_team_id' => $result['home_team_id'],
                 'team_h_difficulty' => $result['team_h_difficulty'],
                 'team_a_difficulty' => $result['team_a_difficulty'],
+                'game_week_start' => $result['game_week_start'],
             ];
         }
 
@@ -175,6 +198,41 @@ SQL;
         $data = [];
         foreach ($results as $result) {
             $data[$result['player_id']] = $result['last_team_id'];
+        }
+
+        return $data;
+    }
+
+    private function buildTeamData(int $teamId, string $visitStatus, string $gameWeekStart): array
+    {
+        $sql = <<<SQL
+SELECT f.team_h_score,
+       f.team_h_difficulty,
+       f.team_a_score,
+       f.team_a_difficulty
+FROM fixtures f
+         INNER JOIN game_weeks gw ON f.game_week_id = gw.game_week_id
+WHERE gw.start < ( :gameWeekStart )
+  AND f.{$visitStatus}_team_id = :teamId
+  AND f.finished = true
+ORDER BY f.kickoff_time DESC
+LIMIT 5;
+SQL;
+
+        $statement = $this->connection->prepare($sql);
+        $statement->bindParam('teamId', $teamId);
+        $statement->bindParam('gameWeekStart', $gameWeekStart);
+
+        $statement->execute();
+        $statement->setFetchMode(PDO::FETCH_ASSOC);
+        $results = $statement->fetchAll();
+
+        $data = [];
+        for ($i = 0; $i < 5; $i += 1) {
+            $data["{$visitStatus}_h_team_score_sub_{$i}"] = $results[$i]['team_h_score'] ?? -1;
+            $data["{$visitStatus}_h_team_diff_sub_{$i}"] = $results[$i]['team_h_difficulty'] ?? -1;
+            $data["{$visitStatus}_a_team_score_sub_{$i}"] = $results[$i]['team_a_score'] ?? -1;
+            $data["{$visitStatus}_a_team_diff_sub_{$i}"] = $results[$i]['team_a_difficulty'] ?? -1;
         }
 
         return $data;

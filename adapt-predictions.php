@@ -27,6 +27,11 @@ while ($line = fgetcsv($predictionResource)) {
     $playerData = getPlayerData($connection, $playerId, $fixtureId);
     [$webName, $teamId, $positionId, $cost] = $playerData;
 
+    if ($positionId <= 0) {
+        // invalid
+        continue;
+    }
+
     $fixtureData = getFixtureData($connection, $fixtureId);
     [$homeTeamId, $awayTeamId, $homeTeam, $awayTeam, $kickoffTime, $gameWeek] = $fixtureData;
 
@@ -38,7 +43,7 @@ while ($line = fgetcsv($predictionResource)) {
 
     if (!isset($predictions[$playerId])) {
         $predictions[$playerId] = [
-            'id' => $playerId,
+            'id' => (int) $playerId,
             'name' => $webName,
             'position' => $positionId,
             'team' => $teamId,

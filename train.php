@@ -21,7 +21,7 @@ $logger->info('Loading data into memory');
 
 $dataset = fopen('dataset.csv', 'r');
 $headers = fgetcsv($dataset);
-$selectedColumns = array_filter($headers, fn($el) => $el !== 'id');
+$selectedColumns = array_filter($headers, fn($el) => !in_array($el, ['id', 'minutes']));
 fclose($dataset);
 
 $extractor = new ColumnPicker(new CSV('dataset.csv', true), $selectedColumns);
