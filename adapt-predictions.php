@@ -68,9 +68,8 @@ function getFixtureData(PDO $connection, string $fixtureId): ?array
 
     if (!array_key_exists($fixtureId, $cache)) {
         $sql = <<<SQL
-SELECT home_team_id, away_team_id, home.name, away.name, kickoff_time, COALESCE(gw.event, -1)
+SELECT home_team_id, away_team_id, home.name, away.name, kickoff_time, f.event
 FROM fixtures f 
-    LEFT JOIN game_weeks gw ON f.game_week_id = gw.game_week_id 
     INNER JOIN teams away ON f.away_team_id = away.team_id
     INNER JOIN teams home ON f.home_team_id = home.team_id
 WHERE fixture_id = :fixtureId

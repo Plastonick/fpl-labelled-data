@@ -33,7 +33,6 @@ SELECT p.player_id, f.fixture_id
 FROM fixtures f
          INNER JOIN players p ON (f.away_team_id = p.last_team_id OR f.home_team_id = p.last_team_id)
          INNER JOIN teams t ON p.last_team_id = t.team_id
-WHERE f.season_id = 16
 SQL;
 
     $statement = $connection->prepare($sql);

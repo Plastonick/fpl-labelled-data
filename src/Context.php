@@ -6,6 +6,9 @@ use PDO;
 
 class Context
 {
+    const HISTORIC_LOOKBACK = 10;
+    const PLAYER_PERFORMANCE_LOOKBACK = 10;
+
     public function __construct(private PDO $connection)
     {
     }
@@ -22,7 +25,7 @@ class Context
         $context = array_merge($context, $this->getFixtureData($playerId, $fixtureId));
 
         $results = $this->fetchRecentPerformance($playerId, $fixtureId);
-        for ($i = 0; $i < 10; $i += 1) {
+        for ($i = 0; $i < self::PLAYER_PERFORMANCE_LOOKBACK; $i += 1) {
             $context["total_points_sub_{$i}"] = $results[$i]['total_points'] ?? 0;
             $context["minutes_sub_{$i}"] = $results[$i]['minutes'] ?? 0;
             $context["was_home_sub_{$i}"] = $results[$i]['was_home'] ?? -1;
@@ -32,7 +35,7 @@ class Context
         }
 
         $results = $this->fetchHistoricPerformances($playerId, $fixtureId);
-        for ($i = 0; $i < 10; $i += 1) {
+        for ($i = 0; $i < self::HISTORIC_LOOKBACK; $i += 1) {
             $context["historic_points_sub_{$i}"] = $results[$i]['total_points'] ?? -1;
             $context["historic_minutes_sub_{$i}"] = $results[$i]['total_minutes'] ?? -1;
             $context["historic_games_sub_{$i}"] = $results[$i]['games_played'] ?? -1;
@@ -73,13 +76,15 @@ FROM player_performances pp
 WHERE pp.player_id = :playerId
   AND pp.kickoff_time < ( SELECT kickoff_time FROM fixtures WHERE fixture_id = :fixtureId )
 ORDER BY pp.kickoff_time DESC
-LIMIT 10;
+LIMIT :lookback;
 SQL;
 
+        $lookback = self::PLAYER_PERFORMANCE_LOOKBACK;
 
         $statement = $this->connection->prepare($sql);
         $statement->bindParam('playerId', $playerId);
         $statement->bindParam('fixtureId', $fixtureId);
+        $statement->bindParam('lookback', $lookback);
 
         $statement->execute();
         $statement->setFetchMode(PDO::FETCH_ASSOC);
@@ -108,13 +113,16 @@ FROM player_performances pp
 WHERE pp.player_id = :playerId
   AND f.kickoff_time < ( SELECT kickoff_time FROM fixtures WHERE fixture_id = :fixtureId )
 GROUP BY s.season_id
-ORDER BY s.season_id DESC
-LIMIT 10;
+ORDER BY s.start_year DESC
+LIMIT :lookback;
 SQL;
+
+        $lookback = self::HISTORIC_LOOKBACK;
 
         $statement = $this->connection->prepare($sql);
         $statement->bindParam('playerId', $playerId);
         $statement->bindParam('fixtureId', $fixtureId);
+        $statement->bindParam('lookback', $lookback);
 
         $statement->execute();
         $statement->setFetchMode(PDO::FETCH_ASSOC);
@@ -143,7 +151,7 @@ SQL;
         return array_merge(
             [
                 'start_hour' => $fixtureDatum['start_hour'],
-                'is_home' => (int) $fixtureDatum['home_team_id'] === (int) $playerTeamId,
+                'is_home' => (int) $fixtureDatum['home_team_id'] === (int) $playerTeamId ? 1 : 0,
                 'team_h_difficulty' => $fixtureDatum['team_h_difficulty'],
                 'team_a_difficulty' => $fixtureDatum['team_a_difficulty'],
             ],
@@ -159,9 +167,13 @@ SELECT fixture_id,
        home_team_id,
        team_h_difficulty,
        team_a_difficulty,
-       gw.start AS game_week_start
+       (
+           SELECT MIN(kickoff_time) 
+           FROM fixtures f2 
+           WHERE f2.season_id = f.season_id 
+                 AND f2.event = f.event
+       )                             AS game_week_start
 FROM fixtures f
-INNER JOIN game_weeks gw ON f.game_week_id = gw.game_week_id
 SQL;
 
         $statement = $this->connection->prepare($sql);
@@ -211,8 +223,12 @@ SELECT f.team_h_score,
        f.team_a_score,
        f.team_a_difficulty
 FROM fixtures f
-         INNER JOIN game_weeks gw ON f.game_week_id = gw.game_week_id
-WHERE gw.start < ( :gameWeekStart )
+WHERE (
+           SELECT MIN(kickoff_time) 
+           FROM fixtures f2 
+           WHERE f2.season_id = f.season_id 
+                 AND f2.event = f.event
+       ) < :gameWeekStart
   AND f.{$visitStatus}_team_id = :teamId
   AND f.finished = true
 ORDER BY f.kickoff_time DESC

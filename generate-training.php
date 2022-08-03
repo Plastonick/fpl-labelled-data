@@ -43,7 +43,6 @@ SELECT
 FROM player_performances pp
          INNER JOIN fixtures f ON pp.fixture_id = f.fixture_id
          INNER JOIN player_season_positions psp ON (f.season_id = psp.season_id AND pp.player_id = psp.player_id)
-WHERE f.season_id IN (14)
 ORDER BY pp.player_id, pp.kickoff_time DESC;
 SQL;
 
